@@ -1,7 +1,7 @@
 "use server";
 
 import { generateObject } from "ai";
-import { google } from "@ai-sdk/google";
+import { groq } from "@ai-sdk/groq";
 
 import { db } from "@/firebase/admin";
 import { feedbackSchema } from "@/constants";
@@ -18,24 +18,52 @@ export async function createFeedback(params: CreateFeedbackParams) {
       .join("");
 
     const { object } = await generateObject({
-      model: google("gemini-2.0-flash-001", {
-        structuredOutputs: false,
-      }),
+      model: groq("llama-3.1-8b-instant"),
       schema: feedbackSchema,
       prompt: `
-        You are an AI interviewer analyzing a mock interview. Your task is to evaluate the candidate based on structured categories. Be thorough and detailed in your analysis. Don't be lenient with the candidate. If there are mistakes or areas for improvement, point them out.
-        Transcript:
-        ${formattedTranscript}
+You are an AI interviewer analyzing a mock interview transcript.
 
-        Please score the candidate from 0 to 100 in the following areas. Do not add categories other than the ones provided:
-        - **Communication Skills**: Clarity, articulation, structured responses.
-        - **Technical Knowledge**: Understanding of key concepts for the role.
-        - **Problem-Solving**: Ability to analyze problems and propose solutions.
-        - **Cultural & Role Fit**: Alignment with company values and job role.
-        - **Confidence & Clarity**: Confidence in responses, engagement, and clarity.
-        `,
+Your task is to generate structured feedback in STRICT JSON format that MUST match the required schema exactly.
+
+Transcript:
+${formattedTranscript}
+
+VERY IMPORTANT RULES (DO NOT BREAK THESE):
+1. You MUST evaluate the candidate in EXACTLY the following 5 categories.
+2. You MUST use the category names EXACTLY as written below.
+3. Do NOT use hyphens (-), ampersands (&), or alternative wording.
+4. Do NOT rename, merge, or add categories.
+5. Return ONLY valid JSON. No markdown. No extra text.
+
+The ONLY allowed category names (exact spelling):
+1. Communication Skills
+2. Technical Knowledge
+3. Problem Solving
+4. Cultural Fit
+5. Confidence and Clarity
+
+Scoring:
+- Each category score must be between 0 and 100.
+- Be critical and realistic. Do NOT be lenient.
+- Point out weaknesses clearly where applicable.
+
+Return JSON in this EXACT structure:
+{
+  "totalScore": number,
+  "categoryScores": [
+    { "name": "Communication Skills", "score": number, "comment": string },
+    { "name": "Technical Knowledge", "score": number, "comment": string },
+    { "name": "Problem Solving", "score": number, "comment": string },
+    { "name": "Cultural Fit", "score": number, "comment": string },
+    { "name": "Confidence and Clarity", "score": number, "comment": string }
+  ],
+  "strengths": string[],
+  "areasForImprovement": string[],
+  "finalAssessment": string
+}
+`,
       system:
-        "You are a professional interviewer analyzing a mock interview. Your task is to evaluate the candidate based on structured categories",
+        "You are a professional interviewer generating STRICT schema-compliant JSON feedback.",
     });
 
     const feedback = {

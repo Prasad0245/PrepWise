@@ -1,5 +1,5 @@
 import { generateText } from "ai";
-import { google } from "@ai-sdk/google";
+import { groq } from "@ai-sdk/groq";
 import { db } from "@/firebase/admin";
 
 export async function POST(request: Request) {
@@ -20,7 +20,8 @@ export async function POST(request: Request) {
 
   try {
     const { text: evalText } = await generateText({
-      model: google("gemini-2.0-flash-001"),
+      model: groq("llama-3.1-8b-instant"),
+
       prompt: `
 Evaluate the following interview responses from a candidate.
 Please return a score from 0 to 100 based on technical and behavioral skill, and brief feedback.
